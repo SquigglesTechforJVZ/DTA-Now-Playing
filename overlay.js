@@ -2,7 +2,23 @@ const $=s=>document.querySelector(s);
 const viz=$("#visualizer");
 for(let i=0;i<34;i++){const b=document.createElement("b");b.style.animationDelay=(-((i*0.083)%0.9))+"s";viz.appendChild(b)}
 const fmt=n=>{n=Math.max(0,Math.floor(Number(n)||0));return Math.floor(n/60)+":"+String(n%60).padStart(2,"0")};
-let hideTimer;
+
+let hideTimer=null;
+let wasPlaying=false;
+
+function showCard(){
+  if(hideTimer){clearTimeout(hideTimer);hideTimer=null}
+  $("#card").classList.add("on");
+}
+
+function scheduleHide(){
+  if(hideTimer)return;
+  hideTimer=setTimeout(()=>{
+    $("#card").classList.remove("on");
+    hideTimer=null;
+  },3000);
+}
+
 function render(d){
   $("#title").textContent=d.title||"Unknown track";
   $("#artist").textContent=d.artist||"Unknown artist";
@@ -11,9 +27,21 @@ function render(d){
   const pct=d.duration?Math.min(100,Math.max(0,d.position/d.duration*100)):0;
   $("#progress").style.width=pct+"%";
   $("#time").textContent=fmt(d.position)+" / "+fmt(d.duration);
-  clearTimeout(hideTimer);
-  if(d.playing&&d.title)$("#card").classList.add("on");
-  else hideTimer=setTimeout(()=>$("#card").classList.remove("on"),2500);
+
+  const isPlaying=!!d.playing&&!!d.title;
+  if(isPlaying){
+    showCard();
+  }else if(wasPlaying||$("#card").classList.contains("on")){
+    scheduleHide();
+  }
+  wasPlaying=isPlaying;
 }
-async function poll(){try{const r=await fetch("/now-playing",{cache:"no-store"});render(await r.json())}catch{}}
-setInterval(poll,750);poll();
+
+async function poll(){
+  try{
+    const r=await fetch("/now-playing",{cache:"no-store"});
+    render(await r.json());
+  }catch{}
+}
+setInterval(poll,750);
+poll();
